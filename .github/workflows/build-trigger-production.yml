@@ -1,4 +1,4 @@
-name: Deploy Service API
+name: Deploy Web Profile API
 
 on:
   pull_request:
