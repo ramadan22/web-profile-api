@@ -18,7 +18,7 @@ services:
 
   app:
     depends_on:
-      - database-mysql
+      - mysql
     build:
       context: .
       dockerfile: ./docker/app/Dockerfile
