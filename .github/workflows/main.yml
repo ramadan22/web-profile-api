@@ -1,0 +1,104 @@
+name: Deploy Service API
+
+on:
+  pull_request:
+    branch:
+      - main
+    types: [closed]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Create .env file
+        uses: SpicyPizza/create-envfile@v2.0
+        with:
+          envkey_NODE_ENV: production
+          envkey_PORT: ${{ secrets.PORT }}
+          envkey_X_API_KEY: ${{ secrets.X_API_KEY }}
+          envkey_ACCESS_TOKEN_KEY: ${{ secrets.ACCESS_TOKEN_KEY }}
+          envkey_DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          envkey_DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          envkey_DB_NAME: ${{ secrets.DB_NAME }}
+          envkey_DB_PORT: ${{ secrets.DB_PORT }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Docker images
+        run: |
+          docker-compose -f docker-compose.yml build
+
+      - name: Save Docker Image to Tarball
+        run: |
+          docker save service-api -o service-api.tar
+          docker save custom-mysql -o custom-mysql.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: my-artifact
+          path: |
+            service-api.tar
+            custom-mysql.tar
+
+  upload:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: my-artifact
+          path: dockerfiles
+
+      - name: Transfer file via FTP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          source: dockerfiles/*
+          target: "/home/${{ secrets.VPS_USERNAME }}/"
+
+  running:
+    runs-on: ubuntu-latest
+    needs: [build, upload]
+
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            # Check if Docker network exists
+            if [[ -z $(sudo docker network ls --format '{{.Name}}' | grep 'service-api-network') ]]; then
+              echo "Creating Docker network"
+              sudo docker network create service-api-network
+            else
+              echo "Docker network 'service-api-network' already exists, skipping creation."
+            fi
+
+            # Stop and remove existing containers (if any)
+            sudo docker stop service-api custom-mysql || true
+            sudo docker rm service-api custom-mysql || true
+
+            sudo docker image prune -a --force
+
+            sudo docker load < /home/${{ secrets.VPS_USERNAME }}/dockerfiles/service-api.tar
+            sudo docker load < /home/${{ secrets.VPS_USERNAME }}/dockerfiles/custom-mysql.tar
+
+            sudo docker run -d --name=service-api -p ${{ secrets.PORT }}:${{ secrets.PORT }} --network=service-api-network service-api:latest
+            sudo docker run -d --name=custom-mysql -p ${{ secrets.DB_PORT }}:3306 --network=service-api-network -v db-service-api:/var/lib/mysql custom-mysql:8.2
+
+            sudo rm /home/${{ secrets.VPS_USERNAME }}/dockerfiles/*
