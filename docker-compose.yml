@@ -1,20 +1,20 @@
 version: '3.8'
 
 services:
-  database-mysql:
+  mysql:
     build:
       context: .
       dockerfile: ./docker/mysql/Dockerfile
       args:
         MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
         MYSQL_DATABASE: '${DB_NAME}'
-    image: custom-mysql:8.2
-    container_name: custom-mysql
+    image: database-mysql:8.2
+    container_name: database-mysql
     restart: unless-stopped
     ports:
       - "${DB_PORT}:3306"
     networks:
-      - service-api-network
+      - web-profile-api-network
 
   app:
     depends_on:
@@ -22,15 +22,15 @@ services:
     build:
       context: .
       dockerfile: ./docker/app/Dockerfile
-    image: service-api:latest
-    container_name: service-api
+    image: web-profile-api:latest
+    container_name: web-profile-api
     ports:
       - "${PORT}:${PORT}"
     networks:
-      - service-api-network
+      - web-profile-api-network
 
 volumes: 
   db:
 networks:
-  service-api-network:
+  web-profile-api-network:
     driver: bridge
