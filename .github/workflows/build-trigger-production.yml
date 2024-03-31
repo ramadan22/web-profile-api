@@ -41,15 +41,15 @@ jobs:
 
       - name: Save Docker Image to Tarball
         run: |
-          docker save service-api -o service-api.tar
-          docker save custom-mysql -o custom-mysql.tar
+          docker save web-profile-api -o web-profile-api.tar
+          docker save database-mysql -o database-mysql.tar
 
       - uses: actions/upload-artifact@v4
         with:
           name: my-artifact
           path: |
-            service-api.tar
-            custom-mysql.tar
+            web-profile-api.tar
+            database-mysql.tar
 
   upload:
     runs-on: ubuntu-latest
@@ -83,23 +83,23 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             # Check if Docker network exists
-            if [[ -z $(sudo docker network ls --format '{{.Name}}' | grep 'service-api-network') ]]; then
+            if [[ -z $(sudo docker network ls --format '{{.Name}}' | grep 'web-profile-api-network') ]]; then
               echo "Creating Docker network"
-              sudo docker network create service-api-network
+              sudo docker network create web-profile-api-network
             else
-              echo "Docker network 'service-api-network' already exists, skipping creation."
+              echo "Docker network 'web-profile-api-network' already exists, skipping creation."
             fi
 
             # Stop and remove existing containers (if any)
-            sudo docker stop service-api custom-mysql || true
-            sudo docker rm service-api custom-mysql || true
+            sudo docker stop web-profile-api database-mysql || true
+            sudo docker rm web-profile-api database-mysql || true
 
             sudo docker image prune -a --force
 
-            sudo docker load < /home/${{ secrets.VPS_USERNAME }}/dockerfiles/service-api.tar
-            sudo docker load < /home/${{ secrets.VPS_USERNAME }}/dockerfiles/custom-mysql.tar
+            sudo docker load < /home/${{ secrets.VPS_USERNAME }}/dockerfiles/web-profile-api.tar
+            sudo docker load < /home/${{ secrets.VPS_USERNAME }}/dockerfiles/database-mysql.tar
 
-            sudo docker run -d --name=service-api -p ${{ secrets.PORT }}:${{ secrets.PORT }} --network=service-api-network service-api:latest
-            sudo docker run -d --name=custom-mysql -p ${{ secrets.DB_PORT }}:3306 --network=service-api-network -v db-service-api:/var/lib/mysql custom-mysql:8.2
+            sudo docker run -d --name=web-profile-api -p ${{ secrets.PORT }}:${{ secrets.PORT }} --network=web-profile-api-network web-profile-api:latest
+            sudo docker run -d --name=database-mysql -p ${{ secrets.DB_PORT }}:3306 --network=web-profile-api-network -v db-web-profile-api:/var/lib/mysql database-mysql:8.2
 
             sudo rm /home/${{ secrets.VPS_USERNAME }}/dockerfiles/*
