@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  database-mysql:
+    build:
+      context: .
+      dockerfile: ./docker/mysql/Dockerfile
+      args:
+        MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+        MYSQL_DATABASE: '${DB_NAME}'
+    image: custom-mysql:8.2
+    container_name: custom-mysql
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT}:3306"
+    networks:
+      - service-api-network
+
+  app:
+    depends_on:
+      - database-mysql
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+    image: service-api:latest
+    container_name: service-api
+    ports:
+      - "${PORT}:${PORT}"
+    networks:
+      - service-api-network
+
+volumes: 
+  db:
+networks:
+  service-api-network:
+    driver: bridge
