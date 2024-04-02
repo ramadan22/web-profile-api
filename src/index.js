@@ -35,6 +35,10 @@ app.use('/cms/management-roles', managementRolesRoutes);
 const serviceSectionOpening = require('./routes/services/section-opening');
 app.use('/service/section-opening', serviceSectionOpening);
 
+// route service section-educational
+const serviceSectionEducational = require('./routes/services/section-educational');
+app.use('/service/section-educational', serviceSectionEducational);
+
 
 app.use((err, req, res, next) => {
   res.json({
