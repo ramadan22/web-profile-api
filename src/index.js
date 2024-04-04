@@ -39,6 +39,10 @@ app.use('/service/section-opening', serviceSectionOpening);
 const serviceSectionEducational = require('./routes/services/section-educational');
 app.use('/service/section-educational', serviceSectionEducational);
 
+// route service section-educational
+const serviceSectionCareerExperience = require('./routes/services/section-career-experience');
+app.use('/service/section-career-experience', serviceSectionCareerExperience);
+
 
 app.use((err, req, res, next) => {
   res.json({
